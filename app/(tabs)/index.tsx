@@ -1,74 +1,137 @@
-import { Image, StyleSheet, Platform } from 'react-native';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  FlatList,
+  StyleSheet,
+  Keyboard,
+} from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSpring } from 'react-native-reanimated';
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+export default function App() {
+  const [note, setNote] = useState('');
+  const [notes, setNotes] = useState<string[]>([]);
+  const width = useSharedValue(50); // Start with a small width
+  const translateX = useSharedValue(0); // For movement
+  const rotation = useSharedValue(0); // For rotating the button
+  const colorValue = useSharedValue(0); // For color transition
+  const maxWidth = 300; // Set a maximum width for the note box
 
-export default function HomeScreen() {
+  const handleAddNote = () => {
+    if (note.trim()) {
+      setNotes([...notes, note]);
+      setNote('');
+      Keyboard.dismiss();
+
+      // Increase the width until maxWidth
+      width.value = width.value + 50 <= maxWidth ? width.value + 50 : maxWidth;
+
+      // Trigger animations
+      translateX.value = withSpring(100, { damping: 10 }, () => {
+        translateX.value = withSpring(0); // Reset position after animation
+      });
+
+      colorValue.value = colorValue.value === 0 ? withTiming(1, { duration: 500 }) : withTiming(0, { duration: 500 });
+
+      rotation.value = withTiming(rotation.value + 360, { duration: 800 }); // Rotate the button
+    }
+  };
+
+  const animatedStyle = useAnimatedStyle(() => {
+    let backgroundColor = 'red'; // Default color for low width
+    if (width.value > 200) backgroundColor = 'green'; // Max width: green
+    else if (width.value > 100) backgroundColor = 'yellow'; // Medium width: yellow
+
+    return {
+      transform: [{ translateX: translateX.value }], // Horizontal movement
+      width: withTiming(width.value, { duration: 500 }), // Smooth width increase
+      height: 50,
+      backgroundColor, // Dynamically change background color
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderRadius: 5,
+    };
+  });
+
+  const animatedButtonStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ rotate: `${rotation.value}deg` }], // Rotate the button
+    };
+  });
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
+    <View style={styles.container}>
+      <Text style={styles.header}>🔋 Animated Note App</Text>
+      <View style={styles.inputContainer}>
+        <TextInput
+          style={styles.input}
+          placeholder="Write your note here..."
+          value={note}
+          onChangeText={(text) => setNote(text)}
         />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12'
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          Tap the Explore tab to learn more about what's included in this starter app.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          When you're ready, run{' '}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+        <TouchableOpacity onPress={handleAddNote}>
+          <Animated.View style={[styles.addButton, animatedButtonStyle]}>
+            <Text style={styles.addButtonText}>+</Text>
+          </Animated.View>
+        </TouchableOpacity>
+      </View>
+      <FlatList
+        data={notes}
+        renderItem={({ item }) => (
+          <Animated.View style={[styles.noteContainer, animatedStyle]}>
+            <Text style={styles.noteText}>{item}</Text>
+          </Animated.View>
+        )}
+        keyExtractor={(item, index) => index.toString()}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+    padding: 20,
+  },
+  header: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  inputContainer: {
     flexDirection: 'row',
+    marginBottom: 20,
+  },
+  input: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 5,
+    padding: 10,
+    fontSize: 16,
+  },
+  addButton: {
+    marginLeft: 10,
+    backgroundColor: '#007AFF',
+    borderRadius: 50,
+    padding: 10,
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  addButtonText: {
+    color: '#fff',
+    fontSize: 18,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  noteContainer: {
+    marginBottom: 10,
+    padding: 10,
+  },
+  noteText: {
+    fontSize: 16,
+    color: '#000',
   },
 });
